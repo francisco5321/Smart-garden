@@ -1,20 +1,22 @@
 import 'package:flutter/material.dart';
+import 'screens/main_screen.dart';
 
 void main() {
-  runApp(const MainApp());
+  runApp(const SmartGardenApp());
 }
 
-class MainApp extends StatelessWidget {
-  const MainApp({super.key});
+class SmartGardenApp extends StatelessWidget {
+  const SmartGardenApp({Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
-    return const MaterialApp(
-      home: Scaffold(
-        body: Center(
-          child: Text('Hello World!'),
-        ),
+    return MaterialApp(
+      title: 'Smart Garden',
+      debugShowCheckedModeBanner: false, // Remove a faixa "DEBUG"
+      theme: ThemeData(
+        primarySwatch: Colors.green,
       ),
+      home: const main_screen(),
     );
   }
 }
