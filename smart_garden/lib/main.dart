@@ -16,7 +16,7 @@ class SmartGardenApp extends StatelessWidget {
       theme: ThemeData(
         primarySwatch: Colors.green,
       ),
-      home: const main_screen(),
+      home: const MainScreen(),
     );
   }
 }
