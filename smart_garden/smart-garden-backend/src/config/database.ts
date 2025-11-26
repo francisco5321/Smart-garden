@@ -1,19 +1,17 @@
 import { Pool } from 'pg';
-const dotenv = require('dotenv');
+import dotenv from 'dotenv';
 
 dotenv.config();
 
 const pool = new Pool({
-    user: process.env.DB_USER || 'postgres',
-    host: process.env.DB_HOST || 'localhost',
-    database: process.env.DB_NAME || 'smart_garden',
-    password: process.env.DB_PASSWORD || '',
-    port: Number(process.env.DB_PORT) || 5432,
-});
-
-pool.on('error', (err) => {
-    console.error('Unexpected error on idle client', err);
-    process.exit(-1);
+    host: process.env.DB_HOST,
+    port: parseInt(process.env.DB_PORT || '9001'),
+    user: process.env.DB_USER,
+    password: process.env.DB_PASSWORD,
+    database: process.env.DB_NAME,
+    ssl: {
+        rejectUnauthorized: false
+    }
 });
 
 export default pool;

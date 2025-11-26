@@ -4,7 +4,7 @@ import { SensorData } from '../models/gardenModel';
 class GardenService {
     async getCurrentSensorData(): Promise<SensorData> {
         const result = await pool.query(
-            'SELECT * FROM sensor_readings ORDER BY timestamp DESC LIMIT 1'
+            'SELECT * FROM dados_sensores ORDER BY data_registo DESC LIMIT 1'
         );
         
         if (result.rows.length === 0) {
@@ -16,26 +16,26 @@ class GardenService {
 
     async getHistoricalData(limit: number = 100, offset: number = 0): Promise<SensorData[]> {
         const result = await pool.query(
-            'SELECT * FROM sensor_readings ORDER BY timestamp DESC LIMIT $1 OFFSET $2',
+            'SELECT * FROM dados_sensores ORDER BY data_registo DESC LIMIT $1 OFFSET $2',
             [limit, offset]
         );
         return result.rows;
     }
 
-    async createSensorReading(data: Omit<SensorData, 'id' | 'timestamp'>): Promise<SensorData> {
+    async createSensorReading(data: Omit<SensorData, 'id' | 'data_registo'>): Promise<SensorData> {
         const result = await pool.query(
-            `INSERT INTO sensor_readings 
-             (temperature, soil_humidity, air_humidity, water_level, system_operational) 
+            `INSERT INTO dados_sensores 
+             (temperatura_ar, humidade_ar, nivel_agua, umidade_solo, nivel_luz) 
              VALUES ($1, $2, $3, $4, $5) 
              RETURNING *`,
-            [data.temperature, data.soil_humidity, data.air_humidity, data.water_level, data.system_operational]
+            [data.temperatura_ar, data.humidade_ar, data.nivel_agua, data.umidade_solo, data.nivel_luz]
         );
         return result.rows[0];
     }
 
     async getLatestReading(): Promise<SensorData | null> {
         const result = await pool.query(
-            'SELECT * FROM sensor_readings ORDER BY timestamp DESC LIMIT 1'
+            'SELECT * FROM dados_sensores ORDER BY data_registo DESC LIMIT 1'
         );
         return result.rows[0] || null;
     }

@@ -1,29 +1,18 @@
-import express, { Application } from 'express';
-const cors = require('cors');
-const dotenv = require('dotenv');
-import apiRoutes from './routes/api';
+import express from 'express';
+import cors from 'cors';
+import dotenv from 'dotenv';
+import gardenRoutes from './routes/gardenRoutes';
 
 dotenv.config();
 
-const app: Application = express();
+const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Middleware
 app.use(cors());
 app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
 
-// Routes
-app.use('/api', apiRoutes);
+app.use('/api/garden', gardenRoutes);
 
-// Health check
-app.get('/health', (req, res) => {
-    res.status(200).json({ status: 'OK', message: 'Smart Garden API is running' });
-});
-
-// Start server
 app.listen(PORT, () => {
-    console.log(`🌱 Server running on http://localhost:${PORT}`);
+    console.log(`Servidor rodando na porta ${PORT}`);
 });
-
-export default app;
