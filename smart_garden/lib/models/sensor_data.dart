@@ -19,14 +19,22 @@ class SensorData {
 
   factory SensorData.fromJson(Map<String, dynamic> json) {
     return SensorData(
-      id: json['id'],
+      id: json['id'] is int ? json['id'] : int.tryParse(json['id'].toString()),
       dataRegisto: DateTime.parse(json['data_registo']),
-      temperaturaAr: json['temperatura_ar'].toDouble(),
-      humidadeAr: json['humidade_ar'].toDouble(),
-      nivelAgua: json['nivel_agua'].toDouble(),
-      umidadeSolo: json['umidade_solo'].toDouble(),
-      nivelLuz: json['nivel_luz'].toDouble(),
+      temperaturaAr: _parseDouble(json['temperatura_ar']),
+      humidadeAr: _parseDouble(json['humidade_ar']),
+      nivelAgua: _parseDouble(json['nivel_agua']),
+      umidadeSolo: _parseDouble(json['umidade_solo']),
+      nivelLuz: _parseDouble(json['nivel_luz']),
     );
+  }
+
+  static double _parseDouble(dynamic value) {
+    if (value == null) return 0.0;
+    if (value is double) return value;
+    if (value is int) return value.toDouble();
+    if (value is String) return double.tryParse(value) ?? 0.0;
+    return 0.0;
   }
 
   Map<String, dynamic> toJson() {
@@ -37,5 +45,10 @@ class SensorData {
       'umidade_solo': umidadeSolo,
       'nivel_luz': nivelLuz,
     };
+  }
+
+  @override
+  String toString() {
+    return 'SensorData(id: $id, temp: $temperaturaAr°C, humidade_ar: $humidadeAr%, nivel_agua: $nivelAgua%, umidade_solo: $umidadeSolo%, luz: $nivelLuz%)';
   }
 }
