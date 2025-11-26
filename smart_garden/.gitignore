@@ -1,3 +1,8 @@
+/smart-garden-backend/.env
+/smart-garden-backend/package-lock.json
+/smart-garden-backend/package.json
+/smart-garden-backend/node_modules/
+
 # Miscellaneous
 *.class
 *.log
