@@ -1,3 +1,4 @@
+/.env
 /smart-garden-backend/.env
 /smart-garden-backend/package-lock.json
 /smart-garden-backend/package.json

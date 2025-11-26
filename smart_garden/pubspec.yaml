@@ -8,6 +8,8 @@ environment:
 
 dependencies:
   http: ^1.2.0
+  flutter_dotenv: ^5.1.0
+  mqtt_client: ^10.2.0
   flutter:
     sdk: flutter
 
@@ -18,3 +20,5 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+  assets:
+    - .env

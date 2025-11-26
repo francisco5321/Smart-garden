@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import '../widgets/sensor_card.dart';
-import '../services/api_service.dart';
+import '../services/mqtt_service.dart';
 import '../models/sensor_data.dart';
 
 class MainScreen extends StatefulWidget {
@@ -11,51 +11,91 @@ class MainScreen extends StatefulWidget {
 }
 
 class _MainScreenState extends State<MainScreen> {
-  final ApiService _apiService = ApiService();
+  final MqttService _mqttService = MqttService();
   SensorData? _currentData;
-  bool _isLoading = false;
+  bool _isConnected = false;
+  bool _isConnecting = true;
   String? _error;
+  DateTime? _lastUpdate;
 
   @override
   void initState() {
     super.initState();
     print('🟢 MainScreen: initState chamado');
-    _loadCurrentData();
+    _connectMqtt();
   }
 
-  Future<void> _loadCurrentData() async {
-    print('🔵 MainScreen: Iniciando _loadCurrentData');
+  Future<void> _connectMqtt() async {
     setState(() {
-      _isLoading = true;
+      _isConnecting = true;
       _error = null;
     });
 
     try {
-      print('🟡 MainScreen: Chamando API...');
-      final data = await _apiService.getCurrentSensorData();
-      print('🟢 MainScreen: Dados recebidos com sucesso!');
-      print('📊 Dados: $data');
+      print('🔵 MainScreen: Conectando ao MQTT...');
+      await _mqttService.connect();
       
       setState(() {
-        _currentData = data;
-        _isLoading = false;
+        _isConnected = true;
+        _isConnecting = false;
+        _error = null;
       });
-      print('✅ MainScreen: Estado atualizado com sucesso');
-    } catch (e, stackTrace) {
-      print('🔴 MainScreen: Erro capturado!');
-      print('❌ Erro: $e');
-      print('📍 StackTrace: $stackTrace');
+
+      print('✅ MainScreen: Conectado! Escutando dados...');
+
+      // Escutar dados do MQTT
+      _mqttService.sensorDataStream.listen(
+        (data) {
+          print('📊 MainScreen: Dados recebidos via MQTT');
+          setState(() {
+            _currentData = data;
+            _lastUpdate = DateTime.now();
+          });
+        },
+        onError: (error) {
+          print('🔴 MainScreen: Erro no stream: $error');
+          setState(() {
+            _error = error.toString();
+          });
+        },
+      );
+
+      // Solicitar dados atuais imediatamente
+      _mqttService.requestCurrentData();
       
+    } catch (e) {
+      print('🔴 MainScreen: Erro ao conectar: $e');
       setState(() {
         _error = e.toString();
-        _isLoading = false;
+        _isConnected = false;
+        _isConnecting = false;
       });
     }
   }
 
   @override
+  void dispose() {
+    print('🔴 MainScreen: dispose chamado');
+    _mqttService.disconnect();
+    super.dispose();
+  }
+
+  String _getTimeSinceUpdate() {
+    if (_lastUpdate == null) return 'Aguardando...';
+    
+    final difference = DateTime.now().difference(_lastUpdate!);
+    if (difference.inSeconds < 60) {
+      return '${difference.inSeconds}s atrás';
+    } else if (difference.inMinutes < 60) {
+      return '${difference.inMinutes}min atrás';
+    } else {
+      return '${difference.inHours}h atrás';
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
-    print('🎨 MainScreen: build chamado - isLoading: $_isLoading, error: $_error, hasData: ${_currentData != null}');
+    print('🎨 MainScreen: build - connecting: $_isConnecting, connected: $_isConnected, hasData: ${_currentData != null}');
     
     return Scaffold(
       backgroundColor: const Color(0xFFF5F8F5),
@@ -66,17 +106,35 @@ class _MainScreenState extends State<MainScreen> {
         centerTitle: true,
         elevation: 0,
         actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: () {
-              print('🔄 MainScreen: Botão refresh pressionado');
-              _loadCurrentData();
-            },
+          Padding(
+            padding: const EdgeInsets.only(right: 16.0),
+            child: Row(
+              children: [
+                Icon(
+                  _isConnected ? Icons.cloud_done : Icons.cloud_off,
+                  color: _isConnected ? Colors.lightGreenAccent : Colors.redAccent,
+                ),
+                const SizedBox(width: 4),
+                Text(
+                  _isConnected ? 'Online' : 'Offline',
+                  style: const TextStyle(fontSize: 12),
+                ),
+              ],
+            ),
           ),
         ],
       ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator(color: Color(0xFF2D6A4F)))
+      body: _isConnecting
+          ? const Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  CircularProgressIndicator(color: Color(0xFF2D6A4F)),
+                  SizedBox(height: 16),
+                  Text('Conectando ao MQTT...', style: TextStyle(fontSize: 16)),
+                ],
+              ),
+            )
           : _error != null
               ? Center(
                   child: Padding(
@@ -87,7 +145,7 @@ class _MainScreenState extends State<MainScreen> {
                         const Icon(Icons.error_outline, size: 64, color: Colors.red),
                         const SizedBox(height: 16),
                         const Text(
-                          'Erro ao carregar dados',
+                          'Erro de Conexão',
                           style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                         ),
                         const SizedBox(height: 8),
@@ -98,12 +156,9 @@ class _MainScreenState extends State<MainScreen> {
                         ),
                         const SizedBox(height: 24),
                         ElevatedButton.icon(
-                          onPressed: () {
-                            print('🔄 MainScreen: Botão Tentar Novamente pressionado');
-                            _loadCurrentData();
-                          },
+                          onPressed: _connectMqtt,
                           icon: const Icon(Icons.refresh),
-                          label: const Text('Tentar Novamente'),
+                          label: const Text('Reconectar'),
                           style: ElevatedButton.styleFrom(
                             backgroundColor: const Color(0xFF2D6A4F),
                             foregroundColor: Colors.white,
@@ -115,13 +170,15 @@ class _MainScreenState extends State<MainScreen> {
                   ),
                 )
               : RefreshIndicator(
-                  onRefresh: _loadCurrentData,
+                  onRefresh: () async {
+                    _mqttService.requestCurrentData();
+                  },
                   color: const Color(0xFF2D6A4F),
                   child: SingleChildScrollView(
                     physics: const AlwaysScrollableScrollPhysics(),
                     child: Column(
                       children: [
-                        // Header decorativo
+                        // Header
                         Container(
                           width: double.infinity,
                           decoration: const BoxDecoration(
@@ -133,12 +190,17 @@ class _MainScreenState extends State<MainScreen> {
                           ),
                           padding: const EdgeInsets.fromLTRB(24, 0, 24, 32),
                           child: Column(
-                            children: const [
-                              Icon(Icons.energy_savings_leaf, size: 48, color: Color(0xFF95D5B2)),
-                              SizedBox(height: 8),
-                              Text(
+                            children: [
+                              const Icon(Icons.energy_savings_leaf, size: 48, color: Color(0xFF95D5B2)),
+                              const SizedBox(height: 8),
+                              const Text(
                                 'Monitorização em Tempo Real',
                                 style: TextStyle(fontSize: 18, color: Colors.white70, fontWeight: FontWeight.w500),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                'MQTT • ${_getTimeSinceUpdate()}',
+                                style: const TextStyle(fontSize: 14, color: Colors.white54),
                               ),
                             ],
                           ),
@@ -147,7 +209,6 @@ class _MainScreenState extends State<MainScreen> {
                         Padding(
                           padding: const EdgeInsets.all(20.0),
                           child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: [
                               SensorCard(
                                 icon: Icons.thermostat,
@@ -200,21 +261,19 @@ class _MainScreenState extends State<MainScreen> {
                               ),
                               const SizedBox(height: 24),
 
-                              // System Status Card
+                              // Status Card
                               Container(
                                 padding: const EdgeInsets.all(20),
                                 decoration: BoxDecoration(
                                   gradient: LinearGradient(
-                                    colors: _currentData != null 
+                                    colors: _isConnected 
                                         ? const [Color(0xFF52B788), Color(0xFF74C69D)]
                                         : [Colors.grey.shade400, Colors.grey.shade500],
-                                    begin: Alignment.topLeft,
-                                    end: Alignment.bottomRight,
                                   ),
                                   borderRadius: BorderRadius.circular(16),
                                   boxShadow: [
                                     BoxShadow(
-                                      color: (_currentData != null 
+                                      color: (_isConnected 
                                           ? const Color(0xFF52B788)
                                           : Colors.grey.shade400).withOpacity(0.3),
                                       blurRadius: 12,
@@ -231,7 +290,7 @@ class _MainScreenState extends State<MainScreen> {
                                         borderRadius: BorderRadius.circular(12),
                                       ),
                                       child: Icon(
-                                        _currentData != null ? Icons.check_circle : Icons.sync,
+                                        _isConnected ? Icons.check_circle : Icons.cloud_off,
                                         color: Colors.white,
                                         size: 32,
                                       ),
@@ -242,9 +301,9 @@ class _MainScreenState extends State<MainScreen> {
                                         crossAxisAlignment: CrossAxisAlignment.start,
                                         children: [
                                           Text(
-                                            _currentData != null 
+                                            _isConnected 
                                                 ? 'Sistema Operacional'
-                                                : 'A Carregar...',
+                                                : 'Sistema Offline',
                                             style: const TextStyle(
                                               fontSize: 18,
                                               fontWeight: FontWeight.bold,
@@ -253,9 +312,9 @@ class _MainScreenState extends State<MainScreen> {
                                           ),
                                           const SizedBox(height: 4),
                                           Text(
-                                            _currentData != null 
-                                                ? 'Última atualização: ${_currentData!.dataRegisto.toString().split('.')[0]}'
-                                                : 'A aguardar dados dos sensores',
+                                            _isConnected 
+                                                ? 'Recebendo dados via MQTT'
+                                                : 'Verifique a conexão',
                                             style: const TextStyle(
                                               fontSize: 14,
                                               color: Colors.white70,
