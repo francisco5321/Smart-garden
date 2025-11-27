@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../widgets/sensor_card.dart';
+import 'dart:async';
 import '../services/mqtt_service.dart';
 import '../models/sensor_data.dart';
 
@@ -15,8 +15,9 @@ class _MainScreenState extends State<MainScreen> {
   SensorData? _currentData;
   bool _isConnected = false;
   bool _isConnecting = true;
-  String? _error;
-  DateTime? _lastUpdate;
+  
+  StreamSubscription<bool>? _connectionSubscription;
+  StreamSubscription<SensorData>? _dataSubscription;
 
   @override
   void initState() {
@@ -26,71 +27,77 @@ class _MainScreenState extends State<MainScreen> {
   }
 
   Future<void> _connectMqtt() async {
+    print('🔵 MainScreen: Conectando ao MQTT...');
     setState(() {
       _isConnecting = true;
-      _error = null;
+      _isConnected = false;
     });
 
     try {
-      print('🔵 MainScreen: Conectando ao MQTT...');
+      // Cancelar subscriptions anteriores se existirem
+      await _connectionSubscription?.cancel();
+      await _dataSubscription?.cancel();
+
+      // Conectar ao MQTT
       await _mqttService.connect();
-      
-      setState(() {
-        _isConnected = true;
-        _isConnecting = false;
-        _error = null;
+
+      // Aguardar um momento para garantir que a conexão foi estabelecida
+      await Future.delayed(const Duration(milliseconds: 500));
+
+      // Escutar status de conexão
+      _connectionSubscription = _mqttService.connectionStatus.listen((status) {
+        if (mounted) {
+          print('📡 MainScreen: Status de conexão atualizado: $status');
+          setState(() {
+            _isConnected = status;
+            if (status) {
+              _isConnecting = false;
+            }
+          });
+        }
       });
 
-      print('✅ MainScreen: Conectado! Escutando dados...');
-
-      // Escutar dados do MQTT
-      _mqttService.sensorDataStream.listen(
-        (data) {
-          print('📊 MainScreen: Dados recebidos via MQTT');
+      // Escutar dados dos sensores
+      _dataSubscription = _mqttService.sensorDataStream.listen((data) {
+        if (mounted) {
+          print('📊 MainScreen: Dados recebidos: ${data.temperaturaAr}°C');
           setState(() {
             _currentData = data;
-            _lastUpdate = DateTime.now();
+            // Garantir que não está mais em estado de loading
+            if (_isConnecting) {
+              _isConnecting = false;
+              _isConnected = true;
+            }
           });
-        },
-        onError: (error) {
-          print('🔴 MainScreen: Erro no stream: $error');
-          setState(() {
-            _error = error.toString();
-          });
-        },
-      );
+        }
+      });
 
-      // Solicitar dados atuais imediatamente
-      _mqttService.requestCurrentData();
+      // Forçar atualização do estado após conexão
+      if (mounted) {
+        setState(() {
+          _isConnected = true;
+          _isConnecting = false;
+        });
+      }
       
     } catch (e) {
       print('🔴 MainScreen: Erro ao conectar: $e');
-      setState(() {
-        _error = e.toString();
-        _isConnected = false;
-        _isConnecting = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isConnecting = false;
+          _isConnected = false;
+        });
+      }
     }
   }
 
   @override
   void dispose() {
     print('🔴 MainScreen: dispose chamado');
+    _connectionSubscription?.cancel();
+    _dataSubscription?.cancel();
     _mqttService.disconnect();
     super.dispose();
-  }
-
-  String _getTimeSinceUpdate() {
-    if (_lastUpdate == null) return 'Aguardando...';
-    
-    final difference = DateTime.now().difference(_lastUpdate!);
-    if (difference.inSeconds < 60) {
-      return '${difference.inSeconds}s atrás';
-    } else if (difference.inMinutes < 60) {
-      return '${difference.inMinutes}min atrás';
-    } else {
-      return '${difference.inHours}h atrás';
-    }
   }
 
   @override
@@ -98,241 +105,345 @@ class _MainScreenState extends State<MainScreen> {
     print('🎨 MainScreen: build - connecting: $_isConnecting, connected: $_isConnected, hasData: ${_currentData != null}');
     
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F8F5),
-      appBar: AppBar(
-        title: const Text('Smart Garden', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 24)),
-        backgroundColor: const Color(0xFF2D6A4F),
-        foregroundColor: Colors.white,
-        centerTitle: true,
-        elevation: 0,
-        actions: [
-          Padding(
-            padding: const EdgeInsets.only(right: 16.0),
-            child: Row(
-              children: [
-                Icon(
-                  _isConnected ? Icons.cloud_done : Icons.cloud_off,
-                  color: _isConnected ? Colors.lightGreenAccent : Colors.redAccent,
-                ),
-                const SizedBox(width: 4),
-                Text(
-                  _isConnected ? 'Online' : 'Offline',
-                  style: const TextStyle(fontSize: 12),
-                ),
-              ],
+      backgroundColor: const Color(0xFFF5F5F5),
+      body: SafeArea(
+        child: _isConnecting
+            ? _buildLoadingView()
+            : !_isConnected
+                ? _buildErrorView()
+                : _currentData == null
+                    ? _buildNoDataView()
+                    : _buildDataView(),
+      ),
+    );
+  }
+
+  Widget _buildLoadingView() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const CircularProgressIndicator(
+            valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF2E7D32)),
+            strokeWidth: 3,
+          ),
+          const SizedBox(height: 24),
+          Text(
+            'Conectando...',
+            style: TextStyle(
+              fontSize: 16,
+              color: Colors.grey[600],
+              fontWeight: FontWeight.w500,
             ),
           ),
         ],
       ),
-      body: _isConnecting
-          ? const Center(
+    );
+  }
+
+  Widget _buildErrorView() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32.0),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.cloud_off_rounded,
+              size: 80,
+              color: Colors.grey[400],
+            ),
+            const SizedBox(height: 24),
+            Text(
+              'Sem conexão',
+              style: TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.w600,
+                color: Colors.grey[800],
+              ),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'Verifique sua conexão e tente novamente',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 14,
+                color: Colors.grey[600],
+              ),
+            ),
+            const SizedBox(height: 32),
+            ElevatedButton.icon(
+              onPressed: _connectMqtt,
+              icon: const Icon(Icons.refresh_rounded),
+              label: const Text('Tentar Novamente'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF2E7D32),
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                elevation: 0,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildNoDataView() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.hourglass_empty_rounded,
+            size: 80,
+            color: Colors.grey[400],
+          ),
+          const SizedBox(height: 24),
+          Text(
+            'Aguardando dados...',
+            style: TextStyle(
+              fontSize: 18,
+              color: Colors.grey[600],
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDataView() {
+    return CustomScrollView(
+      physics: const BouncingScrollPhysics(),
+      slivers: [
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: const EdgeInsets.all(24.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildHeader(),
+                const SizedBox(height: 32),
+                _buildSensorGrid(),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildHeader() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: const Color(0xFF2E7D32),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Icon(
+                Icons.eco_rounded,
+                color: Colors.white,
+                size: 28,
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
               child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  CircularProgressIndicator(color: Color(0xFF2D6A4F)),
-                  SizedBox(height: 16),
-                  Text('Conectando ao MQTT...', style: TextStyle(fontSize: 16)),
+                  const Text(
+                    'Smart Garden',
+                    style: TextStyle(
+                      fontSize: 28,
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFF1B5E20),
+                      letterSpacing: -0.5,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      Container(
+                        width: 8,
+                        height: 8,
+                        decoration: const BoxDecoration(
+                          color: Color(0xFF4CAF50),
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Sistema ativo',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Colors.grey[600],
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
                 ],
               ),
-            )
-          : _error != null
-              ? Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Icon(Icons.error_outline, size: 64, color: Colors.red),
-                        const SizedBox(height: 16),
-                        const Text(
-                          'Erro de Conexão',
-                          style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          _error!,
-                          textAlign: TextAlign.center,
-                          style: const TextStyle(fontSize: 14, color: Colors.red),
-                        ),
-                        const SizedBox(height: 24),
-                        ElevatedButton.icon(
-                          onPressed: _connectMqtt,
-                          icon: const Icon(Icons.refresh),
-                          label: const Text('Reconectar'),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF2D6A4F),
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                )
-              : RefreshIndicator(
-                  onRefresh: () async {
-                    _mqttService.requestCurrentData();
-                  },
-                  color: const Color(0xFF2D6A4F),
-                  child: SingleChildScrollView(
-                    physics: const AlwaysScrollableScrollPhysics(),
-                    child: Column(
-                      children: [
-                        // Header
-                        Container(
-                          width: double.infinity,
-                          decoration: const BoxDecoration(
-                            color: Color(0xFF2D6A4F),
-                            borderRadius: BorderRadius.only(
-                              bottomLeft: Radius.circular(30),
-                              bottomRight: Radius.circular(30),
-                            ),
-                          ),
-                          padding: const EdgeInsets.fromLTRB(24, 0, 24, 32),
-                          child: Column(
-                            children: [
-                              const Icon(Icons.energy_savings_leaf, size: 48, color: Color(0xFF95D5B2)),
-                              const SizedBox(height: 8),
-                              const Text(
-                                'Monitorização em Tempo Real',
-                                style: TextStyle(fontSize: 18, color: Colors.white70, fontWeight: FontWeight.w500),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                'MQTT • ${_getTimeSinceUpdate()}',
-                                style: const TextStyle(fontSize: 14, color: Colors.white54),
-                              ),
-                            ],
-                          ),
-                        ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
 
-                        Padding(
-                          padding: const EdgeInsets.all(20.0),
-                          child: Column(
-                            children: [
-                              SensorCard(
-                                icon: Icons.thermostat,
-                                iconColor: const Color(0xFFE63946),
-                                title: 'Temperatura',
-                                value: _currentData != null 
-                                    ? '${_currentData!.temperaturaAr.toStringAsFixed(1)} °C'
-                                    : '--',
-                                gradientColors: const [Color(0xFFFFE5E5), Color(0xFFFFF0F0)],
-                              ),
-                              const SizedBox(height: 16),
-                              SensorCard(
-                                icon: Icons.water_drop,
-                                iconColor: const Color(0xFF8B4513),
-                                title: 'Humidade do Solo',
-                                value: _currentData != null 
-                                    ? '${_currentData!.umidadeSolo.toStringAsFixed(1)}%'
-                                    : '--',
-                                gradientColors: const [Color(0xFFE8D5C4), Color(0xFFF5EBE0)],
-                              ),
-                              const SizedBox(height: 16),
-                              SensorCard(
-                                icon: Icons.air,
-                                iconColor: const Color(0xFF4A90E2),
-                                title: 'Humidade do Ar',
-                                value: _currentData != null 
-                                    ? '${_currentData!.humidadeAr.toStringAsFixed(1)}%'
-                                    : '--',
-                                gradientColors: const [Color(0xFFE3F2FD), Color(0xFFF0F7FF)],
-                              ),
-                              const SizedBox(height: 16),
-                              SensorCard(
-                                icon: Icons.opacity,
-                                iconColor: const Color(0xFF1976D2),
-                                title: 'Nível de Água',
-                                value: _currentData != null 
-                                    ? '${_currentData!.nivelAgua.toStringAsFixed(1)}%'
-                                    : '--',
-                                gradientColors: const [Color(0xFFD6EAF8), Color(0xFFEBF5FB)],
-                              ),
-                              const SizedBox(height: 16),
-                              SensorCard(
-                                icon: Icons.wb_sunny,
-                                iconColor: const Color(0xFFFFA726),
-                                title: 'Nível de Luz',
-                                value: _currentData != null 
-                                    ? '${_currentData!.nivelLuz.toStringAsFixed(1)}%'
-                                    : '--',
-                                gradientColors: const [Color(0xFFFFF8E1), Color(0xFFFFFDF7)],
-                              ),
-                              const SizedBox(height: 24),
+  Widget _buildSensorGrid() {
+    return Column(
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: _buildSensorCard(
+                icon: Icons.thermostat_rounded,
+                title: 'Temperatura',
+                value: '${_currentData!.temperaturaAr.toStringAsFixed(1)}°C',
+                color: const Color(0xFFFF6B6B),
+                gradient: const LinearGradient(
+                  colors: [Color(0xFFFF6B6B), Color(0xFFFF8E53)],
+                ),
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: _buildSensorCard(
+                icon: Icons.water_drop_rounded,
+                title: 'Humidade',
+                value: '${_currentData!.humidadeAr.toStringAsFixed(0)}%',
+                color: const Color(0xFF4ECDC4),
+                gradient: const LinearGradient(
+                  colors: [Color(0xFF4ECDC4), Color(0xFF44A08D)],
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+        Row(
+          children: [
+            Expanded(
+              child: _buildSensorCard(
+                icon: Icons.opacity_rounded,
+                title: 'Nível Água',
+                value: '${_currentData!.nivelAgua.toStringAsFixed(0)}%',
+                color: const Color(0xFF4A90E2),
+                gradient: const LinearGradient(
+                  colors: [Color(0xFF4A90E2), Color(0xFF357ABD)],
+                ),
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: _buildSensorCard(
+                icon: Icons.grass_rounded,
+                title: 'Solo',
+                value: '${_currentData!.umidadeSolo.toStringAsFixed(0)}%',
+                color: const Color(0xFF8D6E63),
+                gradient: const LinearGradient(
+                  colors: [Color(0xFF8D6E63), Color(0xFF6D4C41)],
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+        _buildSensorCard(
+          icon: Icons.wb_sunny_rounded,
+          title: 'Luminosidade',
+          value: '${_currentData!.nivelLuz.toStringAsFixed(0)}%',
+          color: const Color(0xFFFFA726),
+          gradient: const LinearGradient(
+            colors: [Color(0xFFFFA726), Color(0xFFFFB74D)],
+          ),
+          isWide: true,
+        ),
+      ],
+    );
+  }
 
-                              // Status Card
-                              Container(
-                                padding: const EdgeInsets.all(20),
-                                decoration: BoxDecoration(
-                                  gradient: LinearGradient(
-                                    colors: _isConnected 
-                                        ? const [Color(0xFF52B788), Color(0xFF74C69D)]
-                                        : [Colors.grey.shade400, Colors.grey.shade500],
-                                  ),
-                                  borderRadius: BorderRadius.circular(16),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: (_isConnected 
-                                          ? const Color(0xFF52B788)
-                                          : Colors.grey.shade400).withOpacity(0.3),
-                                      blurRadius: 12,
-                                      offset: const Offset(0, 6),
-                                    ),
-                                  ],
-                                ),
-                                child: Row(
-                                  children: [
-                                    Container(
-                                      padding: const EdgeInsets.all(12),
-                                      decoration: BoxDecoration(
-                                        color: Colors.white.withOpacity(0.3),
-                                        borderRadius: BorderRadius.circular(12),
-                                      ),
-                                      child: Icon(
-                                        _isConnected ? Icons.check_circle : Icons.cloud_off,
-                                        color: Colors.white,
-                                        size: 32,
-                                      ),
-                                    ),
-                                    const SizedBox(width: 16),
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
-                                        children: [
-                                          Text(
-                                            _isConnected 
-                                                ? 'Sistema Operacional'
-                                                : 'Sistema Offline',
-                                            style: const TextStyle(
-                                              fontSize: 18,
-                                              fontWeight: FontWeight.bold,
-                                              color: Colors.white,
-                                            ),
-                                          ),
-                                          const SizedBox(height: 4),
-                                          Text(
-                                            _isConnected 
-                                                ? 'Recebendo dados via MQTT'
-                                                : 'Verifique a conexão',
-                                            style: const TextStyle(
-                                              fontSize: 14,
-                                              color: Colors.white70,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
+  Widget _buildSensorCard({
+    required IconData icon,
+    required String title,
+    required String value,
+    required Color color,
+    required Gradient gradient,
+    bool isWide = false,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        gradient: gradient,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: color.withOpacity(0.3),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                icon,
+                color: Colors.white.withOpacity(0.9),
+                size: 24,
+              ),
+              const Spacer(),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  'Agora',
+                  style: TextStyle(
+                    fontSize: 10,
+                    color: Colors.white.withOpacity(0.9),
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Text(
+            title,
+            style: TextStyle(
+              fontSize: 13,
+              color: Colors.white.withOpacity(0.9),
+              fontWeight: FontWeight.w500,
+              letterSpacing: 0.3,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            value,
+            style: const TextStyle(
+              fontSize: 32,
+              fontWeight: FontWeight.w700,
+              color: Colors.white,
+              letterSpacing: -1,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
