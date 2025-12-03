@@ -12,6 +12,7 @@ dependencies:
   mqtt_client: ^10.2.0
   flutter:
     sdk: flutter
+  postgres: ^3.0.0
 
 dev_dependencies:
   flutter_test:

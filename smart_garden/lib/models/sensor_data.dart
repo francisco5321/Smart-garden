@@ -1,3 +1,4 @@
+
 class SensorData {
   final int? id;
   final DateTime dataRegisto;
