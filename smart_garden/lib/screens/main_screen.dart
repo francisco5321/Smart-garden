@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import '../services/database_service.dart';
 import '../models/sensor_data.dart';
+import '../widgets/sensor_card.dart';
+import '../widgets/last_update_widget.dart';
+import '../widgets/error_state_widget.dart';
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
@@ -18,30 +21,23 @@ class _MainScreenState extends State<MainScreen> {
   @override
   void initState() {
     super.initState();
-    print('🟢 MainScreen: initState chamado');
     _loadCurrentData();
   }
 
   Future<void> _loadCurrentData() async {
-    print('🔵 MainScreen: Iniciando _loadCurrentData');
     setState(() {
       _isLoading = true;
       _error = null;
     });
 
     try {
-      print('🟡 MainScreen: Chamando Database...');
       final data = await _dbService.getCurrentSensorData();
       
-      print('✅ MainScreen: Dados recebidos!');
       setState(() {
         _currentData = data;
         _isLoading = false;
       });
     } catch (e, stack) {
-      print('🔴 MainScreen: Erro capturado!');
-      print('❌ Erro: $e');
-      print('📍 StackTrace: $stack');
       setState(() {
         _error = e.toString();
         _isLoading = false;
@@ -51,15 +47,65 @@ class _MainScreenState extends State<MainScreen> {
 
   @override
   Widget build(BuildContext context) {
-    print('🎨 MainScreen: build chamado - isLoading: $_isLoading, error: $_error, hasData: ${_currentData != null}');
-    
     return Scaffold(
+      backgroundColor: const Color(0xFFF5F8F5),
       appBar: AppBar(
-        title: const Text('Smart Garden'),
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        flexibleSpace: Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                const Color(0xFF4A7C59),
+                const Color(0xFF5D9B6D),
+              ],
+            ),
+          ),
+        ),
+        toolbarHeight: 80,
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.15),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Icon(
+                Icons.eco_rounded,
+                color: Colors.white,
+                size: 24,
+              ),
+            ),
+            const SizedBox(width: 12),
+            const Text(
+              'Smart Garden',
+              style: TextStyle(
+                fontWeight: FontWeight.w400,
+                fontSize: 24,
+                color: Colors.white,
+                letterSpacing: 0.3,
+              ),
+            ),
+          ],
+        ),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: _loadCurrentData,
+          Container(
+            margin: const EdgeInsets.only(right: 16),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.15),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: IconButton(
+              icon: const Icon(
+                Icons.refresh_rounded,
+                color: Colors.white,
+                size: 24,
+              ),
+              onPressed: _loadCurrentData,
+            ),
           ),
         ],
       ),
@@ -69,61 +115,114 @@ class _MainScreenState extends State<MainScreen> {
 
   Widget _buildBody() {
     if (_isLoading) {
-      return const Center(child: CircularProgressIndicator());
-    }
-
-    if (_error != null) {
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.error, color: Colors.red, size: 60),
-            const SizedBox(height: 16),
-            Text('Erro: $_error'),
-            const SizedBox(height: 16),
-            ElevatedButton(
-              onPressed: _loadCurrentData,
-              child: const Text('Tentar Novamente'),
+                          SizedBox(
+              width: 36,
+              height: 36,
+              child: CircularProgressIndicator(
+                valueColor: AlwaysStoppedAnimation<Color>(
+                  const Color(0xFF4A7C59)
+                ),
+                strokeWidth: 2.5,
+              ),
+            ),
+            const SizedBox(height: 24),
+            Text(
+              'A carregar',
+              style: TextStyle(
+                fontSize: 13,
+                color: const Color(0xFF2D3436).withOpacity(0.5),
+                fontWeight: FontWeight.w400,
+                letterSpacing: 0.5,
+              ),
             ),
           ],
         ),
       );
     }
 
+    if (_error != null) {
+      return ErrorStateWidget(
+        errorMessage: _error!,
+        onRetry: _loadCurrentData,
+      );
+    }
+
     if (_currentData == null) {
-      return const Center(child: Text('Nenhum dado disponível'));
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.cloud_off_rounded,
+              size: 56,
+              color: const Color(0xFF2D3436).withOpacity(0.2),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'Nenhum dado disponível',
+              style: TextStyle(
+                fontSize: 14,
+                color: const Color(0xFF2D3436).withOpacity(0.5),
+                fontWeight: FontWeight.w400,
+                letterSpacing: 0.3,
+              ),
+            ),
+          ],
+        ),
+      );
     }
 
     return RefreshIndicator(
       onRefresh: _loadCurrentData,
-      child: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          _buildCard('Temperatura', '${_currentData!.temperaturaAr}°C', Icons.thermostat),
-          _buildCard('Humidade do Ar', '${_currentData!.humidadeAr}%', Icons.water_drop),
-          _buildCard('Humidade do Solo', '${_currentData!.umidadeSolo}%', Icons.grass),
-          _buildCard('Nível de Água', '${_currentData!.nivelAgua}', Icons.water),
-          _buildCard('Nível de Luz', '${_currentData!.nivelLuz}', Icons.light_mode),
-          const SizedBox(height: 8),
-          Text(
-            'Última atualização: ${_currentData!.dataRegisto}',
-            textAlign: TextAlign.center,
-            style: Theme.of(context).textTheme.bodySmall,
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildCard(String title, String value, IconData icon) {
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      child: ListTile(
-        leading: Icon(icon, size: 40),
-        title: Text(title),
-        trailing: Text(
-          value,
-          style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+      color: const Color(0xFF4A7C59),
+      backgroundColor: Colors.white,
+      child: SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.fromLTRB(24, 8, 24, 32),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            SensorCard(
+              title: 'Temperatura do Ar',
+              value: '${_currentData!.temperaturaAr.toStringAsFixed(1)}°C',
+              icon: Icons.thermostat_rounded,
+              color: const Color(0xFFFF6B6B),
+            ),
+            const SizedBox(height: 14),
+            SensorCard(
+              title: 'Humidade do Ar',
+              value: '${_currentData!.humidadeAr.toStringAsFixed(1)}%',
+              icon: Icons.water_drop_rounded,
+              color: const Color(0xFF4ECDC4),
+            ),
+            const SizedBox(height: 14),
+            SensorCard(
+              title: 'Humidade do Solo',
+              value: '${_currentData!.umidadeSolo.toStringAsFixed(1)}%',
+              icon: Icons.grass_rounded,
+              color: const Color(0xFF8B7355),
+            ),
+            const SizedBox(height: 14),
+            SensorCard(
+              title: 'Nível de Água',
+              value: _currentData!.nivelAgua.toStringAsFixed(1),
+              icon: Icons.opacity_rounded,
+              color: const Color(0xFF5C7CFA),
+            ),
+            const SizedBox(height: 14),
+            SensorCard(
+              title: 'Nível de Luz',
+              value: _currentData!.nivelLuz.toStringAsFixed(1),
+              icon: Icons.wb_sunny_rounded,
+              color: const Color(0xFFFFA94D),
+            ),
+            const SizedBox(height: 28),
+            LastUpdateWidget(dateTime: _currentData!.dataRegisto),
+          ],
         ),
       ),
     );
