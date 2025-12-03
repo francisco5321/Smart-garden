@@ -26,7 +26,7 @@ class SensorCard extends StatelessWidget {
         ),
         boxShadow: [
           BoxShadow(
-            color: color.withOpacity(0.06),
+            color: color.withOpacity(0.16),
             spreadRadius: 0,
             blurRadius: 16,
             offset: const Offset(0, 4),
@@ -46,7 +46,7 @@ class SensorCard extends StatelessWidget {
                   end: Alignment.bottomRight,
                   colors: [
                     color.withOpacity(0.12),
-                    color.withOpacity(0.06),
+                    color.withOpacity(0.6),
                   ],
                 ),
                 borderRadius: BorderRadius.circular(14),
@@ -83,18 +83,6 @@ class SensorCard extends StatelessWidget {
                     ),
                   ),
                 ],
-              ),
-            ),
-            Container(
-              padding: const EdgeInsets.all(6),
-              decoration: BoxDecoration(
-                color: const Color(0xFF4A7C59).withOpacity(0.08),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(
-                Icons.check_circle_outline_rounded,
-                size: 16,
-                color: const Color(0xFF4A7C59).withOpacity(0.5),
               ),
             ),
           ],
