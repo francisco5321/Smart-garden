@@ -10,9 +10,6 @@ Future<void> main() async {
   try {
     await dotenv.load(fileName: ".env");
     print('✅ .env carregado com sucesso!');
-    print('📍 MQTT Broker: ${dotenv.env['MQTT_BROKER']}');
-    print('📍 MQTT Port: ${dotenv.env['MQTT_PORT']}');
-    print('📍 Client ID: ${dotenv.env['MQTT_CLIENT_ID']}');
   } catch (e) {
     print('❌ Erro ao carregar .env: $e');
   }
