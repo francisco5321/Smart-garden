@@ -21,13 +21,13 @@ class LastUpdateWidget extends StatelessWidget {
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [
-            const Color(0xFF4A7C59).withOpacity(0.08),
-            const Color(0xFF5D9B6D).withOpacity(0.05),
+            const Color(0xFF4A7C59).withValues(alpha: 0.08),
+            const Color(0xFF5D9B6D).withValues(alpha: 0.05),
           ],
         ),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: const Color(0xFF4A7C59).withOpacity(0.12),
+          color: const Color(0xFF4A7C59).withValues(alpha: 0.12),
           width: 1,
         ),
       ),
@@ -56,7 +56,7 @@ class LastUpdateWidget extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 11,
                   fontWeight: FontWeight.w500,
-                  color: const Color(0xFF4A7C59).withOpacity(0.7),
+                  color: const Color(0xFF4A7C59).withValues(alpha: 0.7),
                   letterSpacing: 0.4,
                 ),
               ),

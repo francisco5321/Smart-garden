@@ -22,12 +22,12 @@ class ErrorStateWidget extends StatelessWidget {
               width: 80,
               height: 80,
               decoration: BoxDecoration(
-                color: const Color(0xFFFF6B6B).withOpacity(0.08),
+                color: const Color(0xFFFF6B6B).withValues(alpha: 0.08),
                 borderRadius: BorderRadius.circular(20),
               ),
               child: Icon(
                 Icons.cloud_off_rounded,
-                color: const Color(0xFFFF6B6B).withOpacity(0.7),
+                color: const Color(0xFFFF6B6B).withValues(alpha: 0.7),
                 size: 40,
               ),
             ),
@@ -37,7 +37,7 @@ class ErrorStateWidget extends StatelessWidget {
               style: TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.w500,
-                color: const Color(0xFF2D3436).withOpacity(0.85),
+                color: const Color(0xFF2D3436).withValues(alpha: 0.85),
                 letterSpacing: -0.3,
               ),
               textAlign: TextAlign.center,
@@ -48,7 +48,7 @@ class ErrorStateWidget extends StatelessWidget {
               style: TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.w400,
-                color: const Color(0xFF2D3436).withOpacity(0.5),
+                color: const Color(0xFF2D3436).withValues(alpha: 0.5),
                 height: 1.5,
                 letterSpacing: 0.2,
               ),

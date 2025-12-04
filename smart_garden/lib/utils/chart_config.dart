@@ -66,7 +66,7 @@ class ChartConfig {
         return ChartConfig(
           title: 'Nível de Luz',
           valueExtractor: (data) => data.nivelLuz,
-          unit: 'lux',
+          unit: '%',
           minLimit: SensorLimits.nivelLuzMin,
           maxLimit: SensorLimits.nivelLuzMax,
           fixedMinY: 0,

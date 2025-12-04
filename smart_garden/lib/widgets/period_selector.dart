@@ -17,10 +17,21 @@ class PeriodSelector extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(4),
+      padding: const EdgeInsets.all(6),
       decoration: BoxDecoration(
-        color: const Color(0xFF1A1F3A),
+        color: Colors.white,
         borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: const Color(0xFFE9ECEF),
+          width: 1,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.03),
+            blurRadius: 4,
+            offset: const Offset(0, 1),
+          ),
+        ],
       ),
       child: Row(
         children: periods.map((period) {
@@ -28,19 +39,35 @@ class PeriodSelector extends StatelessWidget {
           return Expanded(
             child: GestureDetector(
               onTap: () => onPeriodSelected(period),
-              child: Container(
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                curve: Curves.easeInOut,
                 padding: const EdgeInsets.symmetric(vertical: 10),
                 decoration: BoxDecoration(
                   color: isSelected ? accentColor : Colors.transparent,
                   borderRadius: BorderRadius.circular(8),
+                  boxShadow: isSelected
+                      ? [
+                          BoxShadow(
+                            color: accentColor.withValues(alpha: 0.3),
+                            blurRadius: 4,
+                            offset: const Offset(0, 2),
+                          ),
+                        ]
+                      : null,
                 ),
-                child: Text(
-                  period,
-                  textAlign: TextAlign.center,
+                child: AnimatedDefaultTextStyle(
+                  duration: const Duration(milliseconds: 200),
+                  curve: Curves.easeInOut,
                   style: TextStyle(
-                    color: isSelected ? Colors.white : Colors.white54,
-                    fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
+                    color: isSelected ? Colors.white : const Color(0xFF2D3436).withValues(alpha: 0.6),
+                    fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
                     fontSize: 13,
+                    letterSpacing: 0.3,
+                  ),
+                  child: Text(
+                    period,
+                    textAlign: TextAlign.center,
                   ),
                 ),
               ),

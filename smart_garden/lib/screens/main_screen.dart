@@ -106,7 +106,7 @@ class _MainScreenState extends State<MainScreen> {
             Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.15),
+                color: Colors.white.withValues(alpha: 0.15),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: const Icon(
@@ -131,7 +131,7 @@ class _MainScreenState extends State<MainScreen> {
           Container(
             margin: const EdgeInsets.only(right: 8),
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.15),
+              color: Colors.white.withValues(alpha: 0.15),
               borderRadius: BorderRadius.circular(12),
             ),
             child: IconButton(
@@ -153,7 +153,7 @@ class _MainScreenState extends State<MainScreen> {
           Container(
             margin: const EdgeInsets.only(right: 16),
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.15),
+              color: Colors.white.withValues(alpha: 0.15),
               borderRadius: BorderRadius.circular(12),
             ),
             child: IconButton(
@@ -192,7 +192,7 @@ class _MainScreenState extends State<MainScreen> {
               'A carregar',
               style: TextStyle(
                 fontSize: 13,
-                color: const Color(0xFF2D3436).withOpacity(0.5),
+                color: const Color(0xFF2D3436).withValues(alpha: 0.5),
                 fontWeight: FontWeight.w400,
                 letterSpacing: 0.5,
               ),
@@ -217,14 +217,14 @@ class _MainScreenState extends State<MainScreen> {
             Icon(
               Icons.cloud_off_rounded,
               size: 56,
-              color: const Color(0xFF2D3436).withOpacity(0.2),
+              color: const Color(0xFF2D3436).withValues(alpha: 0.2),
             ),
             const SizedBox(height: 16),
             Text(
               'Nenhum dado disponível',
               style: TextStyle(
                 fontSize: 14,
-                color: const Color(0xFF2D3436).withOpacity(0.5),
+                color: const Color(0xFF2D3436).withValues(alpha: 0.5),
                 fontWeight: FontWeight.w400,
                 letterSpacing: 0.3,
               ),

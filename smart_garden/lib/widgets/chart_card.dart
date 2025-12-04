@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:intl/intl.dart';
 import '../models/sensor_data.dart';
-import '../utils/chart_colors.dart';
 
 class ChartCard extends StatelessWidget {
   final String title;
@@ -51,15 +50,21 @@ class ChartCard extends StatelessWidget {
       dataMax = historyData.map(valueExtractor).reduce((a, b) => a > b ? a : b);
     }
 
-    // Remove percentChange calculation
     final chartMinY = fixedMinY ?? (dataMin - (dataMax - dataMin) * 0.2).clamp(0.0, double.infinity).toDouble();
     final chartMaxY = fixedMaxY ?? (dataMax + (dataMax - dataMin) * 0.2).toDouble();
 
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: const Color(0xFF1A1F3A),
+        color: Colors.white,
         borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -68,14 +73,15 @@ class ChartCard extends StatelessWidget {
           const SizedBox(height: 12),
           Text(
             title,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 16,
-              color: Colors.white70,
+              color: const Color(0xFF2D3436).withValues(alpha: 0.7),
               fontWeight: FontWeight.w500,
+              letterSpacing: 0.3,
             ),
           ),
           const SizedBox(height: 8),
-          _buildCurrentValue(currentValue, 0), // percentChange não é mais usado
+          _buildCurrentValue(currentValue),
           const SizedBox(height: 16),
           _buildStatistics(dataMin, dataMax),
           const SizedBox(height: 20),
@@ -88,29 +94,41 @@ class ChartCard extends StatelessWidget {
   Widget _buildHeader(bool hasWarning) {
     return Row(
       children: [
-        Icon(icon, color: color, size: 28),
+        Container(
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: 0.15),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Icon(icon, color: color, size: 24),
+        ),
         const Spacer(),
         if (hasWarning)
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
             decoration: BoxDecoration(
-              color: Colors.red.withOpacity(0.2),
+              color: const Color(0xFFFF6B6B).withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(8),
+              border: Border.all(
+                color: const Color(0xFFFF6B6B).withValues(alpha: 0.3),
+                width: 1,
+              ),
             ),
             child: Row(
               children: [
                 Icon(
                   Icons.warning_rounded,
-                  size: 14,
-                  color: Colors.red.shade300,
+                  size: 16,
+                  color: const Color(0xFFFF6B6B),
                 ),
-                const SizedBox(width: 4),
+                const SizedBox(width: 6),
                 Text(
                   'Crítico',
                   style: TextStyle(
-                    fontSize: 11,
+                    fontSize: 12,
                     fontWeight: FontWeight.w600,
-                    color: Colors.red.shade300,
+                    color: const Color(0xFFFF6B6B),
+                    letterSpacing: 0.3,
                   ),
                 ),
               ],
@@ -120,20 +138,15 @@ class ChartCard extends StatelessWidget {
     );
   }
 
-  Widget _buildCurrentValue(double currentValue, double percentChange) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.end,
-      children: [
-        Text(
-          '${currentValue.toStringAsFixed(1)}$unit',
-          style: TextStyle(
-            fontSize: 36,
-            fontWeight: FontWeight.bold,
-            color: color,
-            height: 1,
-          ),
-        ),
-      ],
+  Widget _buildCurrentValue(double currentValue) {
+    return Text(
+      '${currentValue.toStringAsFixed(1)}$unit',
+      style: TextStyle(
+        fontSize: 36,
+        fontWeight: FontWeight.bold,
+        color: color,
+        height: 1.2,
+      ),
     );
   }
 
@@ -153,10 +166,14 @@ class ChartCard extends StatelessWidget {
 
   Widget _buildStatCard(String label, double value) {
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
+      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 14),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.05),
-        borderRadius: BorderRadius.circular(8),
+        color: const Color(0xFFF8F9FA),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: const Color(0xFFE9ECEF),
+          width: 1,
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -165,16 +182,18 @@ class ChartCard extends StatelessWidget {
             label,
             style: TextStyle(
               fontSize: 11,
-              color: Colors.white.withOpacity(0.5),
+              color: const Color(0xFF2D3436).withValues(alpha: 0.5),
+              fontWeight: FontWeight.w500,
+              letterSpacing: 0.5,
             ),
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: 6),
           Text(
             '${value.toStringAsFixed(1)}$unit',
-            style: const TextStyle(
-              fontSize: 16,
+            style: TextStyle(
+              fontSize: 18,
               fontWeight: FontWeight.bold,
-              color: Colors.white,
+              color: const Color(0xFF2D3436),
             ),
           ),
         ],
@@ -195,7 +214,7 @@ class ChartCard extends StatelessWidget {
             horizontalInterval: (chartMaxY - chartMinY) / 4,
             getDrawingHorizontalLine: (value) {
               return FlLine(
-                color: Colors.white.withOpacity(0.05),
+                color: const Color(0xFFE9ECEF),
                 strokeWidth: 1,
               );
             },
@@ -218,7 +237,8 @@ class ChartCard extends StatelessWidget {
                     value.toStringAsFixed(0),
                     style: TextStyle(
                       fontSize: 11,
-                      color: Colors.white.withOpacity(0.5),
+                      color: const Color(0xFF2D3436).withValues(alpha: 0.4),
+                      fontWeight: FontWeight.w500,
                     ),
                   );
                 },
@@ -232,9 +252,13 @@ class ChartCard extends StatelessWidget {
           lineTouchData: LineTouchData(
             enabled: true,
             touchTooltipData: LineTouchTooltipData(
-              tooltipBgColor: const Color(0xFF2A2F4A),
-              tooltipRoundedRadius: 8,
-              tooltipPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              tooltipBgColor: Colors.white,
+              tooltipRoundedRadius: 12,
+              tooltipPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              tooltipBorder: BorderSide(
+                color: const Color(0xFFE9ECEF),
+                width: 1,
+              ),
               getTooltipItems: (List<LineBarSpot> touchedSpots) {
                 return touchedSpots.map((spot) {
                   final data = historyData[spot.x.toInt()];
@@ -248,8 +272,8 @@ class ChartCard extends StatelessWidget {
                     children: [
                       TextSpan(
                         text: DateFormat('HH:mm').format(data.dataRegisto),
-                        style: const TextStyle(
-                          color: Colors.white60,
+                        style: TextStyle(
+                          color: const Color(0xFF2D3436).withValues(alpha: 0.6),
                           fontSize: 12,
                           fontWeight: FontWeight.normal,
                         ),
@@ -265,7 +289,7 @@ class ChartCard extends StatelessWidget {
               if (minLimit >= chartMinY && minLimit <= chartMaxY)
                 HorizontalLine(
                   y: minLimit,
-                  color: Colors.red.withOpacity(0.3),
+                  color: const Color(0xFFFF6B6B).withValues(alpha: 0.3),
                   strokeWidth: 2,
                   dashArray: [8, 4],
                   label: HorizontalLineLabel(
@@ -273,7 +297,7 @@ class ChartCard extends StatelessWidget {
                     alignment: Alignment.centerRight,
                     padding: const EdgeInsets.only(right: 8),
                     style: TextStyle(
-                      color: Colors.red.shade300,
+                      color: const Color(0xFFFF6B6B),
                       fontSize: 10,
                       fontWeight: FontWeight.w600,
                     ),
@@ -283,7 +307,7 @@ class ChartCard extends StatelessWidget {
               if (maxLimit >= chartMinY && maxLimit <= chartMaxY)
                 HorizontalLine(
                   y: maxLimit,
-                  color: Colors.orange.withOpacity(0.3),
+                  color: const Color(0xFFFFA94D).withValues(alpha: 0.3),
                   strokeWidth: 2,
                   dashArray: [8, 4],
                   label: HorizontalLineLabel(
@@ -291,7 +315,7 @@ class ChartCard extends StatelessWidget {
                     alignment: Alignment.centerRight,
                     padding: const EdgeInsets.only(right: 8),
                     style: TextStyle(
-                      color: Colors.orange.shade300,
+                      color: const Color(0xFFFFA94D),
                       fontSize: 10,
                       fontWeight: FontWeight.w600,
                     ),
@@ -315,8 +339,8 @@ class ChartCard extends StatelessWidget {
                 show: true,
                 gradient: LinearGradient(
                   colors: [
-                    color.withOpacity(0.2),
-                    color.withOpacity(0.0),
+                    color.withValues(alpha: 0.2),
+                    color.withValues(alpha: 0.0),
                   ],
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,

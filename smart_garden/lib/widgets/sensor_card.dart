@@ -21,12 +21,12 @@ class SensorCard extends StatelessWidget {
         color: Colors.white,
         borderRadius: BorderRadius.circular(18),
         border: Border.all(
-          color: color.withOpacity(0.12),
+          color: color.withValues(alpha: 0.12),
           width: 1,
         ),
         boxShadow: [
           BoxShadow(
-            color: color.withOpacity(0.06),
+            color: color.withValues(alpha: 0.06),
             spreadRadius: 0,
             blurRadius: 16,
             offset: const Offset(0, 4),
@@ -45,8 +45,8 @@ class SensorCard extends StatelessWidget {
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                   colors: [
-                    color.withOpacity(0.12),
-                    color.withOpacity(0.6),
+                    color.withValues(alpha: 0.12),
+                    color.withValues(alpha: 0.6),
                   ],
                 ),
                 borderRadius: BorderRadius.circular(14),
@@ -54,7 +54,7 @@ class SensorCard extends StatelessWidget {
               child: Icon(
                 icon,
                 size: 26,
-                color: color.withOpacity(0.85),
+                color: color.withValues(alpha: 0.85),
               ),
             ),
             const SizedBox(width: 18),
@@ -67,7 +67,7 @@ class SensorCard extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w500,
-                      color: const Color(0xFF2D3436).withOpacity(0.55),
+                      color: const Color(0xFF2D3436).withValues(alpha: 0.55),
                       letterSpacing: 0.4,
                     ),
                   ),

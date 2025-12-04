@@ -77,22 +77,82 @@ class _ChartsScreenState extends State<ChartsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF0A0E27),
+      backgroundColor: const Color.fromARGB(255, 242, 245, 242),
       appBar: AppBar(
-        backgroundColor: const Color(0xFF0A0E27),
+        backgroundColor: Colors.transparent,
         elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: const Text(
-          'Gráficos',
-          style: TextStyle(
-            fontWeight: FontWeight.w600,
-            fontSize: 20,
-            color: Colors.white,
+        flexibleSpace: Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                const Color(0xFF4A7C59),
+                const Color(0xFF5D9B6D),
+              ],
+            ),
           ),
         ),
+        toolbarHeight: 80,
+        leadingWidth: 56,
+        leading: Center(
+          child: Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: IconButton(
+              padding: EdgeInsets.zero,
+              icon: const Icon(Icons.arrow_back, color: Colors.white, size: 20),
+              onPressed: () => Navigator.pop(context),
+            ),
+          ),
+        ),
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Icon(
+                Icons.show_chart_rounded,
+                color: Colors.white,
+                size: 24,
+              ),
+            ),
+            const SizedBox(width: 12),
+            const Text(
+              'Gráficos',
+              style: TextStyle(
+                fontWeight: FontWeight.w400,
+                fontSize: 24,
+                color: Colors.white,
+                letterSpacing: 0.3,
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          Container(
+            margin: const EdgeInsets.only(right: 16),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: IconButton(
+              icon: const Icon(
+                Icons.refresh_rounded,
+                color: Colors.white,
+                size: 24,
+              ),
+              onPressed: () => _loadHistoryData(),
+            ),
+          ),
+        ],
       ),
       body: _buildBody(),
     );
@@ -101,58 +161,134 @@ class _ChartsScreenState extends State<ChartsScreen> {
   Widget _buildBody() {
     if (_isLoading) {
       return Center(
-        child: CircularProgressIndicator(
-          valueColor: AlwaysStoppedAnimation<Color>(
-            ChartColors.getColorForChart(_selectedChart),
-          ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            SizedBox(
+              width: 36,
+              height: 36,
+              child: CircularProgressIndicator(
+                valueColor: AlwaysStoppedAnimation<Color>(
+                  const Color(0xFF4A7C59),
+                ),
+                strokeWidth: 2.5,
+              ),
+            ),
+            const SizedBox(height: 24),
+            Text(
+              'A carregar dados',
+              style: TextStyle(
+                fontSize: 13,
+                color: const Color(0xFF2D3436).withValues(alpha: 0.5),
+                fontWeight: FontWeight.w400,
+                letterSpacing: 0.5,
+              ),
+            ),
+          ],
         ),
       );
     }
 
     if (_error != null) {
       return Center(
-        child: Text(
-          'Erro: $_error',
-          style: const TextStyle(color: Colors.white70),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.error_outline_rounded,
+              size: 56,
+              color: const Color(0xFF2D3436).withValues(alpha: 0.2),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'Erro: $_error',
+              style: TextStyle(
+                fontSize: 14,
+                color: const Color(0xFF2D3436).withValues(alpha: 0.5),
+                fontWeight: FontWeight.w400,
+                letterSpacing: 0.3,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 24),
+            ElevatedButton.icon(
+              onPressed: () => _loadHistoryData(),
+              icon: const Icon(Icons.refresh_rounded),
+              label: const Text('Tentar novamente'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF4A7C59),
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 24, vertical: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+            ),
+          ],
         ),
       );
     }
 
     if (_historyData.isEmpty) {
-      return const Center(
-        child: Text(
-          'Sem dados disponíveis',
-          style: TextStyle(color: Colors.white70),
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.cloud_off_rounded,
+              size: 56,
+              color: const Color(0xFF2D3436).withValues(alpha: 0.2),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'Sem dados disponíveis',
+              style: TextStyle(
+                fontSize: 14,
+                color: const Color(0xFF2D3436).withValues(alpha: 0.5),
+                fontWeight: FontWeight.w400,
+                letterSpacing: 0.3,
+              ),
+            ),
+          ],
         ),
       );
     }
 
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(20),
-      child: Column(
-        children: [
-          ChartSelector(
-            selectedChart: _selectedChart,
-            onChartSelected: (chart) {
-              setState(() {
-                _selectedChart = chart;
-              });
-            },
-          ),
-          const SizedBox(height: 20),
-          _buildSelectedChart(),
-          const SizedBox(height: 20),
-          PeriodSelector(
-            selectedPeriod: _selectedPeriod,
-            accentColor: ChartColors.getColorForChart(_selectedChart),
-            onPeriodSelected: (period) {
-              setState(() {
-                _selectedPeriod = period;
-              });
-              _loadHistoryData();
-            },
-          ),
-        ],
+    return RefreshIndicator(
+      onRefresh: () => _loadHistoryData(),
+      color: const Color(0xFF4A7C59),
+      backgroundColor: Colors.white,
+      child: SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.fromLTRB(24, 8, 24, 32),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            ChartSelector(
+              selectedChart: _selectedChart,
+              onChartSelected: (chart) {
+                setState(() {
+                  _selectedChart = chart;
+                });
+              },
+            ),
+            const SizedBox(height: 20),
+            _buildSelectedChart(),
+            const SizedBox(height: 20),
+            PeriodSelector(
+              selectedPeriod: _selectedPeriod,
+              accentColor: ChartColors.getColorForChart(_selectedChart),
+              onPeriodSelected: (period) {
+                setState(() {
+                  _selectedPeriod = period;
+                });
+                _loadHistoryData();
+              },
+            ),
+            const SizedBox(height: 14),
+          ],
+        ),
       ),
     );
   }
