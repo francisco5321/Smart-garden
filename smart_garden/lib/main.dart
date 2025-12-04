@@ -3,35 +3,18 @@ import 'package:flutter/services.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'screens/main_screen.dart';
 import 'services/database_service.dart';
+import 'services/notification_service.dart';
 
-Future<void> main() async {
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await dotenv.load(fileName: ".env");
 
-  print('🔧 Carregando .env...');
-  try {
-    await dotenv.load(fileName: ".env");
-    print('✅ .env carregado com sucesso!');
-  } catch (e) {
-    print('❌ Erro ao carregar .env: $e');
-  }
+  final dbService = DatabaseService();
+  await dbService.initialize();
 
-  // Define a orientação para portrait apenas
-  SystemChrome.setPreferredOrientations([
-    DeviceOrientation.portraitUp,
-    DeviceOrientation.portraitDown,
-  ]);
-
-  // Define a cor da barra de status
-  SystemChrome.setSystemUIOverlayStyle(
-    const SystemUiOverlayStyle(
-      statusBarColor: Colors.transparent,
-      statusBarIconBrightness: Brightness.dark,
-      systemNavigationBarColor: Color(0xFFF5F5F5),
-      systemNavigationBarIconBrightness: Brightness.dark,
-    ),
-  );
-
-  await DatabaseService().initialize();
+  // Inicializar notificações
+  final notificationService = NotificationService();
+  await notificationService.initialize();
 
   runApp(const MyApp());
 }

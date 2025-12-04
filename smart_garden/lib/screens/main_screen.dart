@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
+import 'dart:async';
 import '../services/database_service.dart';
+import '../services/notification_service.dart';
 import '../models/sensor_data.dart';
 import '../widgets/sensor_card.dart';
 import '../widgets/last_update_widget.dart';
 import '../widgets/error_state_widget.dart';
+import 'charts_screen.dart';
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
@@ -14,34 +17,67 @@ class MainScreen extends StatefulWidget {
 
 class _MainScreenState extends State<MainScreen> {
   final DatabaseService _dbService = DatabaseService();
+  final NotificationService _notificationService = NotificationService();
   SensorData? _currentData;
   bool _isLoading = false;
   String? _error;
+  Timer? _pollingTimer;
+  static const Duration _pollingInterval = Duration(seconds: 5);
 
   @override
   void initState() {
     super.initState();
+    _initializeNotifications();
     _loadCurrentData();
+    _startPolling();
   }
 
-  Future<void> _loadCurrentData() async {
-    setState(() {
-      _isLoading = true;
-      _error = null;
+  Future<void> _initializeNotifications() async {
+    await _notificationService.initialize();
+  }
+
+  @override
+  void dispose() {
+    _pollingTimer?.cancel();
+    super.dispose();
+  }
+
+  void _startPolling() {
+    _pollingTimer = Timer.periodic(_pollingInterval, (timer) {
+      _loadCurrentData(showLoading: false);
     });
+  }
+
+  Future<void> _loadCurrentData({bool showLoading = true}) async {
+    if (showLoading) {
+      setState(() {
+        _isLoading = true;
+        _error = null;
+      });
+    }
 
     try {
       final data = await _dbService.getCurrentSensorData();
       
-      setState(() {
-        _currentData = data;
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _currentData = data;
+          _isLoading = false;
+          _error = null;
+        });
+
+        // Verificar valores críticos e enviar notificação
+        if (data != null) {
+          await _notificationService.checkSensorValues(data);
+        }
+      }
     } catch (e, stack) {
-      setState(() {
-        _error = e.toString();
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _error = e.toString();
+          _isLoading = false;
+        });
+      }
     }
   }
 
@@ -93,6 +129,28 @@ class _MainScreenState extends State<MainScreen> {
         ),
         actions: [
           Container(
+            margin: const EdgeInsets.only(right: 8),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.15),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: IconButton(
+              icon: const Icon(
+                Icons.show_chart_rounded,
+                color: Colors.white,
+                size: 24,
+              ),
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const ChartsScreen(),
+                  ),
+                );
+              },
+            ),
+          ),
+          Container(
             margin: const EdgeInsets.only(right: 16),
             decoration: BoxDecoration(
               color: Colors.white.withOpacity(0.15),
@@ -104,7 +162,7 @@ class _MainScreenState extends State<MainScreen> {
                 color: Colors.white,
                 size: 24,
               ),
-              onPressed: _loadCurrentData,
+              onPressed: () => _loadCurrentData(),
             ),
           ),
         ],
@@ -119,7 +177,7 @@ class _MainScreenState extends State<MainScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-                          SizedBox(
+            SizedBox(
               width: 36,
               height: 36,
               child: CircularProgressIndicator(
@@ -147,7 +205,7 @@ class _MainScreenState extends State<MainScreen> {
     if (_error != null) {
       return ErrorStateWidget(
         errorMessage: _error!,
-        onRetry: _loadCurrentData,
+        onRetry: () => _loadCurrentData(),
       );
     }
 
@@ -177,7 +235,7 @@ class _MainScreenState extends State<MainScreen> {
     }
 
     return RefreshIndicator(
-      onRefresh: _loadCurrentData,
+      onRefresh: () => _loadCurrentData(),
       color: const Color(0xFF4A7C59),
       backgroundColor: Colors.white,
       child: SingleChildScrollView(

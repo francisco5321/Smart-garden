@@ -26,7 +26,7 @@ class SensorCard extends StatelessWidget {
         ),
         boxShadow: [
           BoxShadow(
-            color: color.withOpacity(0.16),
+            color: color.withOpacity(0.06),
             spreadRadius: 0,
             blurRadius: 16,
             offset: const Offset(0, 4),

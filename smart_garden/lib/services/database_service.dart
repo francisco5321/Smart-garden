@@ -1,6 +1,7 @@
 import 'package:postgres/postgres.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import '../models/sensor_data.dart';
+import 'dart:math' as math;
 
 class DatabaseService {
   static final DatabaseService _instance = DatabaseService._internal();
@@ -87,6 +88,41 @@ class DatabaseService {
       }).toList();
     } catch (e) {
       print('❌ Erro ao buscar histórico: $e');
+      rethrow;
+    }
+  }
+
+  Future<List<SensorData>> getSensorHistory({
+    required DateTime startDate,
+    required DateTime endDate,
+  }) async {
+    try {
+      final result = await _connection!.execute(
+        Sql.named('''
+          SELECT * FROM public.dados_sensores 
+          WHERE data_registo >= @startDate AND data_registo <= @endDate
+          ORDER BY data_registo ASC
+        '''),
+        parameters: {
+          'startDate': startDate,
+          'endDate': endDate,
+        },
+      );
+
+      return result.map((row) {
+        final map = row.toColumnMap();
+        return SensorData(
+          id: map['id'] as int?,
+          dataRegisto: map['data_registo'] as DateTime,
+          temperaturaAr: _toDouble(map['temperatura_ar']),
+          humidadeAr: _toDouble(map['humidade_ar']),
+          nivelAgua: _toDouble(map['nivel_agua']),
+          umidadeSolo: _toDouble(map['umidade_solo']),
+          nivelLuz: _toDouble(map['nivel_luz']),
+        );
+      }).toList();
+    } catch (e) {
+      print('❌ Erro ao buscar histórico por período: $e');
       rethrow;
     }
   }
