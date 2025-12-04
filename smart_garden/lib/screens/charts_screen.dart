@@ -98,7 +98,7 @@ class _ChartsScreenState extends State<ChartsScreen> {
         leading: Center(
           child: Container(
             width: 40,
-            height: 40,
+            height: 60,
             decoration: BoxDecoration(
               color: Colors.white.withValues(alpha: 0.15),
               borderRadius: BorderRadius.circular(12),
