@@ -14,6 +14,7 @@ class ChartCard extends StatelessWidget {
   final double? fixedMinY;
   final double? fixedMaxY;
   final IconData icon;
+  final String selectedPeriod;
 
   const ChartCard({
     super.key,
@@ -27,15 +28,18 @@ class ChartCard extends StatelessWidget {
     this.fixedMinY,
     this.fixedMaxY,
     required this.icon,
+    required this.selectedPeriod,
   });
 
   @override
   Widget build(BuildContext context) {
-    final spots = historyData.asMap().entries.map((entry) {
-      return FlSpot(
-        entry.key.toDouble(),
-        valueExtractor(entry.value),
-      );
+    // Otimização: limitar pontos no gráfico para melhor performance
+    // Ajustar maxPoints baseado no período selecionado
+    final maxPoints = _getMaxPointsForPeriod(selectedPeriod);
+    final displayData = _optimizeDataPoints(historyData, maxPoints: maxPoints);
+
+    final spots = displayData.asMap().entries.map((entry) {
+      return FlSpot(entry.key.toDouble(), valueExtractor(entry.value));
     }).toList();
 
     final currentValue = historyData.isNotEmpty
@@ -50,8 +54,13 @@ class ChartCard extends StatelessWidget {
       dataMax = historyData.map(valueExtractor).reduce((a, b) => a > b ? a : b);
     }
 
-    final chartMinY = fixedMinY ?? (dataMin - (dataMax - dataMin) * 0.2).clamp(0.0, double.infinity).toDouble();
-    final chartMaxY = fixedMaxY ?? (dataMax + (dataMax - dataMin) * 0.2).toDouble();
+    final chartMinY =
+        fixedMinY ??
+        (dataMin - (dataMax - dataMin) * 0.2)
+            .clamp(0.0, double.infinity)
+            .toDouble();
+    final chartMaxY =
+        fixedMaxY ?? (dataMax + (dataMax - dataMin) * 0.2).toDouble();
 
     return Container(
       padding: const EdgeInsets.all(20),
@@ -82,13 +91,89 @@ class ChartCard extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           _buildCurrentValue(currentValue),
+          const SizedBox(height: 8),
+          _buildDataInfo(displayData.length, historyData.length),
           const SizedBox(height: 16),
           _buildStatistics(dataMin, dataMax),
           const SizedBox(height: 20),
-          _buildChart(spots, chartMinY, chartMaxY),
+          _buildChart(spots, chartMinY, chartMaxY, displayData),
         ],
       ),
     );
+  }
+
+  // Determina o número máximo de pontos com base no período
+  int _getMaxPointsForPeriod(String period) {
+    switch (period) {
+      case '1h':
+        return 60; // ~1 ponto por minuto
+      case '6h':
+        return 72; // ~1 ponto a cada 5 minutos
+      case '24h':
+        return 96; // ~1 ponto a cada 15 minutos
+      case '7d':
+        return 84; // ~12 pontos por dia
+      default:
+        return 100;
+    }
+  }
+
+  // Otimização: reduz pontos do gráfico mantendo tendências importantes
+  List<SensorData> _optimizeDataPoints(
+    List<SensorData> data, {
+    required int maxPoints,
+  }) {
+    if (data.length <= maxPoints) return data;
+
+    // Algoritmo LTTB (Largest-Triangle-Three-Buckets) simplificado
+    // Mantém primeiro e último ponto, e seleciona pontos intermediários importantes
+    final result = <SensorData>[];
+    final bucketSize = (data.length - 2) / (maxPoints - 2);
+
+    result.add(data.first); // Sempre manter primeiro ponto
+
+    for (int i = 1; i < maxPoints - 1; i++) {
+      final bucketStart = (i * bucketSize).floor() + 1;
+      final bucketEnd = ((i + 1) * bucketSize).floor() + 1;
+
+      if (bucketStart >= data.length - 1) break;
+
+      // Selecionar ponto com maior variação no bucket
+      int maxIndex = bucketStart;
+      double maxVariation = 0;
+
+      for (int j = bucketStart; j < bucketEnd && j < data.length - 1; j++) {
+        final prevValue = valueExtractor(data[j - 1]);
+        final currValue = valueExtractor(data[j]);
+        final nextValue = valueExtractor(data[j + 1]);
+        final variation =
+            (currValue - prevValue).abs() + (nextValue - currValue).abs();
+
+        if (variation > maxVariation) {
+          maxVariation = variation;
+          maxIndex = j;
+        }
+      }
+
+      result.add(data[maxIndex]);
+    }
+
+    result.add(data.last); // Sempre manter último ponto
+    return result;
+  }
+
+  Widget _buildDataInfo(int displayedPoints, int totalPoints) {
+    if (displayedPoints == totalPoints) {
+      return Text(
+        '$totalPoints pontos',
+        style: TextStyle(
+          fontSize: 11,
+          color: const Color(0xFF2D3436).withValues(alpha: 0.4),
+          fontWeight: FontWeight.w500,
+        ),
+      );
+    }
+    return Row();
   }
 
   Widget _buildHeader(bool hasWarning) {
@@ -153,13 +238,9 @@ class ChartCard extends StatelessWidget {
   Widget _buildStatistics(double dataMin, double dataMax) {
     return Row(
       children: [
-        Expanded(
-          child: _buildStatCard('Mínimo', dataMin),
-        ),
+        Expanded(child: _buildStatCard('Mínimo', dataMin)),
         const SizedBox(width: 12),
-        Expanded(
-          child: _buildStatCard('Máximo', dataMax),
-        ),
+        Expanded(child: _buildStatCard('Máximo', dataMax)),
       ],
     );
   }
@@ -170,10 +251,7 @@ class ChartCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: const Color(0xFFF8F9FA),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: const Color(0xFFE9ECEF),
-          width: 1,
-        ),
+        border: Border.all(color: const Color(0xFFE9ECEF), width: 1),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -201,7 +279,43 @@ class ChartCard extends StatelessWidget {
     );
   }
 
-  Widget _buildChart(List<FlSpot> spots, double chartMinY, double chartMaxY) {
+  double _getXAxisInterval(int dataLength) {
+    if (dataLength <= 5) return 1;
+    if (dataLength <= 10) return 2;
+    if (dataLength <= 20) return 4;
+    if (dataLength <= 50) return 10;
+    return (dataLength / 5).ceilToDouble();
+  }
+
+  Widget _buildXAxisLabel(DateTime timestamp) {
+    String label;
+    if (selectedPeriod == '7d') {
+      // Para 7 dias, mostrar dia/mês (ex: 14/12)
+      label = DateFormat('dd/MM').format(timestamp);
+    } else {
+      // Para 1h, 6h, 24h, mostrar horas (ex: 14:30)
+      label = DateFormat('HH:mm').format(timestamp);
+    }
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 8),
+      child: Text(
+        label,
+        style: TextStyle(
+          fontSize: 10,
+          color: const Color(0xFF2D3436).withValues(alpha: 0.5),
+          fontWeight: FontWeight.w500,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildChart(
+    List<FlSpot> spots,
+    double chartMinY,
+    double chartMaxY,
+    List<SensorData> displayData,
+  ) {
     return SizedBox(
       height: 300,
       child: LineChart(
@@ -213,10 +327,7 @@ class ChartCard extends StatelessWidget {
             drawVerticalLine: false,
             horizontalInterval: (chartMaxY - chartMinY) / 4,
             getDrawingHorizontalLine: (value) {
-              return FlLine(
-                color: const Color(0xFFE9ECEF),
-                strokeWidth: 1,
-              );
+              return FlLine(color: const Color(0xFFE9ECEF), strokeWidth: 1);
             },
           ),
           titlesData: FlTitlesData(
@@ -244,8 +355,19 @@ class ChartCard extends StatelessWidget {
                 },
               ),
             ),
-            bottomTitles: const AxisTitles(
-              sideTitles: SideTitles(showTitles: false),
+            bottomTitles: AxisTitles(
+              sideTitles: SideTitles(
+                showTitles: true,
+                reservedSize: 30,
+                interval: _getXAxisInterval(displayData.length),
+                getTitlesWidget: (value, meta) {
+                  final index = value.toInt();
+                  if (index < 0 || index >= displayData.length) {
+                    return const SizedBox.shrink();
+                  }
+                  return _buildXAxisLabel(displayData[index].dataRegisto);
+                },
+              ),
             ),
           ),
           borderData: FlBorderData(show: false),
@@ -254,14 +376,17 @@ class ChartCard extends StatelessWidget {
             touchTooltipData: LineTouchTooltipData(
               tooltipBgColor: Colors.white,
               tooltipRoundedRadius: 12,
-              tooltipPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              tooltipPadding: const EdgeInsets.symmetric(
+                horizontal: 16,
+                vertical: 10,
+              ),
               tooltipBorder: BorderSide(
                 color: const Color(0xFFE9ECEF),
                 width: 1,
               ),
               getTooltipItems: (List<LineBarSpot> touchedSpots) {
                 return touchedSpots.map((spot) {
-                  final data = historyData[spot.x.toInt()];
+                  final data = displayData[spot.x.toInt()];
                   return LineTooltipItem(
                     '${spot.y.toStringAsFixed(1)}$unit\n',
                     TextStyle(

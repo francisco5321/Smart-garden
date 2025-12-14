@@ -86,10 +86,7 @@ class _ChartsScreenState extends State<ChartsScreen> {
             gradient: LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
-              colors: [
-                const Color(0xFF4A7C59),
-                const Color(0xFF5D9B6D),
-              ],
+              colors: [const Color(0xFF4A7C59), const Color(0xFF5D9B6D)],
             ),
           ),
         ),
@@ -219,7 +216,9 @@ class _ChartsScreenState extends State<ChartsScreen> {
                 backgroundColor: const Color(0xFF4A7C59),
                 foregroundColor: Colors.white,
                 padding: const EdgeInsets.symmetric(
-                    horizontal: 24, vertical: 12),
+                  horizontal: 24,
+                  vertical: 12,
+                ),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),
@@ -309,6 +308,7 @@ class _ChartsScreenState extends State<ChartsScreen> {
       fixedMinY: config.fixedMinY,
       fixedMaxY: config.fixedMaxY,
       icon: icon,
+      selectedPeriod: _selectedPeriod,
     );
   }
 }
