@@ -5,10 +5,10 @@ class SensorLimits {
   static const double humidadeArMin = 20.0;
   static const double humidadeArMax = 90.0;
   
-  static const double umidadeSoloMin = 40.0;
-  static const double umidadeSoloMax = 80.0;
+  static const double umidadeSoloMin = 10.0;
+  static const double umidadeSoloMax = 50.0;
   
-  static const double nivelLuzMin = 30.0;
+  static const double nivelLuzMin = 15.0;
   static const double nivelLuzMax = 80.0;
   
   static const double nivelAguaMin = 20.0;
