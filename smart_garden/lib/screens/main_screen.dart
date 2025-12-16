@@ -267,14 +267,14 @@ class _MainScreenState extends State<MainScreen> {
             const SizedBox(height: 14),
             SensorCard(
               title: 'Nível de Água',
-              value: _currentData!.nivelAgua.toStringAsFixed(1),
+              value: '${_currentData!.nivelAgua.toStringAsFixed(1)}%',
               icon: Icons.opacity_rounded,
               color: const Color(0xFF5C7CFA),
             ),
             const SizedBox(height: 14),
             SensorCard(
               title: 'Nível de Luz',
-              value: _currentData!.nivelLuz.toStringAsFixed(1),
+              value: '${_currentData!.nivelLuz.toStringAsFixed(1)}%',
               icon: Icons.wb_sunny_rounded,
               color: const Color(0xFFFFA94D),
             ),
