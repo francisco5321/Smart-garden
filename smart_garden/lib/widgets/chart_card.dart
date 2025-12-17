@@ -45,13 +45,19 @@ class ChartCard extends StatelessWidget {
     final currentValue = historyData.isNotEmpty
         ? valueExtractor(historyData.last)
         : 0.0;
-    final hasWarning = currentValue < minLimit || currentValue > maxLimit;
+    final hasWarning =
+        historyData.isNotEmpty &&
+        (currentValue < minLimit || currentValue > maxLimit);
 
     double dataMin = currentValue;
     double dataMax = currentValue;
     if (historyData.isNotEmpty) {
       dataMin = historyData.map(valueExtractor).reduce((a, b) => a < b ? a : b);
       dataMax = historyData.map(valueExtractor).reduce((a, b) => a > b ? a : b);
+    } else {
+      // Quando não há dados, usar os limites como referência
+      dataMin = minLimit;
+      dataMax = maxLimit;
     }
 
     final chartMinY =
@@ -90,11 +96,15 @@ class ChartCard extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 8),
-          _buildCurrentValue(currentValue),
+          historyData.isNotEmpty
+              ? _buildCurrentValue(currentValue)
+              : _buildNoDataMessage(),
           const SizedBox(height: 8),
           _buildDataInfo(displayData.length, historyData.length),
           const SizedBox(height: 16),
-          _buildStatistics(dataMin, dataMax),
+          historyData.isNotEmpty
+              ? _buildStatistics(dataMin, dataMax)
+              : _buildEmptyStatistics(),
           const SizedBox(height: 20),
           _buildChart(spots, chartMinY, chartMaxY, displayData),
         ],
@@ -235,12 +245,34 @@ class ChartCard extends StatelessWidget {
     );
   }
 
+  Widget _buildNoDataMessage() {
+    return Text(
+      '-- $unit',
+      style: TextStyle(
+        fontSize: 36,
+        fontWeight: FontWeight.bold,
+        color: const Color(0xFF2D3436).withValues(alpha: 0.3),
+        height: 1.2,
+      ),
+    );
+  }
+
   Widget _buildStatistics(double dataMin, double dataMax) {
     return Row(
       children: [
         Expanded(child: _buildStatCard('Mínimo', dataMin)),
         const SizedBox(width: 12),
         Expanded(child: _buildStatCard('Máximo', dataMax)),
+      ],
+    );
+  }
+
+  Widget _buildEmptyStatistics() {
+    return Row(
+      children: [
+        Expanded(child: _buildEmptyStatCard('Mínimo')),
+        const SizedBox(width: 12),
+        Expanded(child: _buildEmptyStatCard('Máximo')),
       ],
     );
   }
@@ -272,6 +304,40 @@ class ChartCard extends StatelessWidget {
               fontSize: 18,
               fontWeight: FontWeight.bold,
               color: const Color(0xFF2D3436),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEmptyStatCard(String label) {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 14),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8F9FA),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFE9ECEF), width: 1),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 11,
+              color: const Color(0xFF2D3436).withValues(alpha: 0.5),
+              fontWeight: FontWeight.w500,
+              letterSpacing: 0.5,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            '--',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: const Color(0xFF2D3436).withValues(alpha: 0.3),
             ),
           ),
         ],
@@ -316,6 +382,52 @@ class ChartCard extends StatelessWidget {
     double chartMaxY,
     List<SensorData> displayData,
   ) {
+    // Se não há dados, mostrar gráfico vazio com mensagem
+    if (historyData.isEmpty) {
+      return SizedBox(
+        height: 300,
+        child: Container(
+          decoration: BoxDecoration(
+            color: const Color(0xFFF8F9FA),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: const Color(0xFFE9ECEF), width: 1),
+          ),
+          child: Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  Icons.show_chart_rounded,
+                  size: 48,
+                  color: const Color(0xFF2D3436).withValues(alpha: 0.2),
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  'Sem dados para mostrar',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: const Color(0xFF2D3436).withValues(alpha: 0.4),
+                    fontWeight: FontWeight.w500,
+                    letterSpacing: 0.3,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Os dados aparecerão aqui quando estiverem disponíveis',
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: const Color(0xFF2D3436).withValues(alpha: 0.3),
+                    fontWeight: FontWeight.w400,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
     return SizedBox(
       height: 300,
       child: LineChart(

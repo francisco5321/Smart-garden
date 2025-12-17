@@ -229,31 +229,6 @@ class _ChartsScreenState extends State<ChartsScreen> {
       );
     }
 
-    if (_historyData.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.cloud_off_rounded,
-              size: 56,
-              color: const Color(0xFF2D3436).withValues(alpha: 0.2),
-            ),
-            const SizedBox(height: 16),
-            Text(
-              'Sem dados disponíveis',
-              style: TextStyle(
-                fontSize: 14,
-                color: const Color(0xFF2D3436).withValues(alpha: 0.5),
-                fontWeight: FontWeight.w400,
-                letterSpacing: 0.3,
-              ),
-            ),
-          ],
-        ),
-      );
-    }
-
     return RefreshIndicator(
       onRefresh: () => _loadHistoryData(),
       color: const Color(0xFF4A7C59),
